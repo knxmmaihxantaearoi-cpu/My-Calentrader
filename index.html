@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My P&L Calendar App</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+    </style>
+</head>
+<!-- คลาส 'dark' จะถูกสลับไปมาด้วย JavaScript เพื่อเปลี่ยนโหมด -->
+<body id="bodyApp" class="dark bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 min-h-screen p-2 md:p-6 font-sans transition-colors duration-300">
+
+    <div class="max-w-4xl mx-auto bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-4 md:p-6 border border-slate-200 dark:border-slate-700 transition-colors duration-300">
+        
+        <!-- ส่วนหัว, การเลือกเดือน และปุ่มสลับโหมด -->
+        <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
+            <div class="flex items-center gap-3">
+                <h1 class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">📈 My P&L Calendar</h1>
+                <!-- ปุ่มสลับโหมด มืด/สว่าง -->
+                <button onclick="toggleTheme()" class="p-2 rounded-lg bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 transition cursor-pointer text-sm" title="เปลี่ยนโหมด มืด/สว่าง">
+                    <span id="themeIcon">☀️ Mode</span>
+                </button>
+            </div>
+            
+            <div class="flex items-center gap-2 bg-slate-100 dark:bg-slate-700 p-1 rounded-lg">
+                <button onclick="changeMonth(-1)" class="px-3 py-1 hover:bg-slate-200 dark:hover:bg-slate-600 rounded text-xl font-bold transition">&lt;</button>
+                <span id="currentMonthYear" class="px-4 font-semibold min-w-[120px] text-center">---</span>
+                <button onclick="changeMonth(1)" class="px-3 py-1 hover:bg-slate-200 dark:hover:bg-slate-600 rounded text-xl font-bold transition">&gt;</button>
+            </div>
+        </div>
+
+        <!-- แดชบอร์ดสรุปผลประจำเดือน -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            <div class="bg-slate-100 dark:bg-slate-700/50 p-3 rounded-xl border border-slate-200 dark:border-slate-600 text-center">
+                <p class="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase">Win Rate</p>
+                <p id="statWinRate" class="text-xl md:text-2xl font-bold text-amber-600 dark:text-amber-400">0%</p>
+            </div>
+            <div class="bg-slate-100 dark:bg-slate-700/50 p-3 rounded-xl border border-slate-200 dark:border-slate-600 text-center">
+                <p class="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase">Total Trades</p>
+                <p id="statTrades" class="text-xl md:text-2xl font-bold text-slate-700 dark:text-slate-200">0 W - 0 L</p>
+            </div>
+            <div class="bg-slate-100 dark:bg-slate-700/50 p-3 rounded-xl border border-slate-200 dark:border-slate-600 text-center">
+                <p class="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase">Monthly Net P&L</p>
+                <p id="statNetPnL" class="text-xl md:text-2xl font-bold text-slate-700 dark:text-slate-200">$0</p>
+            </div>
+            <div class="bg-slate-100 dark:bg-slate-700/50 p-3 rounded-xl border border-slate-200 dark:border-slate-600 text-center">
+                <p class="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase">Avg Win / Avg Loss</p>
+                <p id="statRatio" class="text-sm md:text-base font-bold text-slate-600 dark:text-slate-300 mt-1">0 / 0</p>
+            </div>
+        </div>
+
+        <!-- วันในสัปดาห์ -->
+        <div class="calendar-grid text-center font-bold text-xs text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wider">
+            <div class="py-1">Sun</div><div class="py-1">Mon</div><div class="py-1">Tue</div>
+            <div class="py-1">Wed</div><div class="py-1">Thu</div><div class="py-1">Fri</div>
+            <div class="py-1">Sat</div>
+        </div>
+
+        <!-- ตารางปฏิทิน -->
+        <div id="calendarDays" class="calendar-grid gap-1 bg-slate-200 dark:bg-slate-750 rounded-xl overflow-hidden min-h-[300px]">
+            <!-- วันที่ในปฏิทินจะถูกสร้างด้วย JavaScript ตรงนี้ -->
+        </div>
+
+        <!-- ส่วนของออปชันสำรองข้อมูล -->
+        <div class="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700 flex flex-wrap justify-between items-center gap-4">
+            <div class="text-xs text-slate-500 dark:text-slate-400">
+                *ข้อมูลบันทึกในเครื่องอัตโนมัติ แนะนำให้กดดาวน์โหลดสำรองข้อมูลไว้เป็นระยะ
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <button onclick="exportData()" class="bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-xs font-semibold py-2 px-3 rounded transition cursor-pointer text-slate-700 dark:text-slate-200">
+                    📥 ดาวน์โหลดข้อมูล (Export)
+                </button>
+                <button onclick="document.getElementById('importFile').click()" class="bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-xs font-semibold py-2 px-3 rounded transition cursor-pointer text-slate-700 dark:text-slate-200">
+                    📤 นำเข้าข้อมูล (Import)
+                </button>
+                <input type="file" id="importFile" class="hidden" accept=".json" onchange="importData(event)">
+            </div>
+        </div>
+    </div>
+
+    <!-- หน้าต่างป็อปอัปสำหรับใส่/แก้ไขข้อมูล P&L -->
+    <div id="modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-6 rounded-2xl max-w-sm w-full shadow-2xl text-slate-800 dark:text-slate-100">
+            <h3 class="text-lg font-bold mb-1" id="modalTitle">บันทึกผลการเทรด</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-4 font-mono" id="modalFormattedDate"></p>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-2">ระบุจำนวนเงิน กำไร (+) หรือ ขาดทุน (-)</label>
+                <input type="number" id="modalAmount" placeholder="ตัวอย่าง: 2500 หรือ -1200" 
+                       class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 p-3 rounded-xl text-slate-900 dark:text-slate-100 font-semibold focus:outline-none focus:border-emerald-500">
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="closeModal()" class="w-1/2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 py-2.5 rounded-xl font-medium transition cursor-pointer text-slate-700 dark:text-slate-200">ยกเลิก</button>
+                <button onclick="saveModalData()" class="w-1/2 bg-emerald-600 hover:bg-emerald-500 text-white dark:text-slate-950 py-2.5 rounded-xl font-bold transition cursor-pointer">บันทึก</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentDate = new Date();
+        let tradeData = JSON.parse(localStorage.getItem('calendarUserData')) || {};
+        let selectedDateKey = '';
+
+        const monthsTh = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+
+        // --- ระบบธีม มืด/สว่าง ---
+        function initTheme() {
+            const savedTheme = localStorage.getItem('appTheme') || 'dark';
+            const body = document.getElementById('bodyApp');
+            const icon = document.getElementById('themeIcon');
+            
+            if (savedTheme === 'dark') {
+                body.classList.add('dark');
+                icon.innerText = '☀️ Light Mode';
+            } else {
+                body.classList.remove('dark');
+                icon.innerText = '🌙 Dark Mode';
+            }
+        }
+
+        function toggleTheme() {
+            const body = document.getElementById('bodyApp');
+            const icon = document.getElementById('themeIcon');
+            
+            if (body.classList.contains('dark')) {
+                body.classList.remove('dark');
+                icon.innerText = '🌙 Dark Mode';
+                localStorage.setItem('appTheme', 'light');
+            } else {
+                body.classList.add('dark');
+                icon.innerText = '☀️ Light Mode';
+                localStorage.setItem('appTheme', 'dark');
+            }
+        }
+
+        // --- ระบบปฏิทิน ---
+        function renderCalendar() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+
+            document.getElementById('currentMonthYear').innerText = `${monthsTh[month]} ${year + 543}`;
+
+            const firstDayIndex = new Date(year, month, 1).getDay();
+            const totalDays = new Date(year, month + 1, 0).getDate();
+            const prevTotalDays = new Date(year, month, 0).getDate();
+
+            const calendarDays = document.getElementById('calendarDays');
+            calendarDays.innerHTML = '';
+
+            // วันที่ของเดือนก่อนหน้า (ช่องว่างสีจาง)
+            for (let i = firstDayIndex; i > 0; i--) {
+                const day = prevTotalDays - i + 1;
+                calendarDays.innerHTML += `<div class="bg-slate-100/50 dark:bg-slate-800/20 text-slate-300 dark:text-slate-600 p-2 min-h-[65px] border border-slate-200/30 dark:border-slate-800/40 text-xs">${day}</div>`;
+            }
+
+            // วันที่ของเดือนปัจจุบัน
+            let monthlyWins = 0, monthlyLosses = 0, monthlyNet = 0;
+            let winSum = 0, lossSum = 0;
+
+            for (let day = 1; day <= totalDays; day++) {
+                const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const pnl = tradeData[dateKey];
+                
+                let pnlDisplay = '';
+                // กำหนดสีกรณีเปิดโหมดสว่างและโหมดมืด
+                let bgClass = 'bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700/50 text-slate-800 dark:text-slate-100';
+
+                if (pnl !== undefined) {
+                    monthlyNet += pnl;
+                    if (pnl > 0) {
+                        monthlyWins++;
+                        winSum += pnl;
+                        bgClass = 'bg-emerald-100 dark:bg-emerald-950/80 border border-emerald-400 dark:border-emerald-500/50 text-emerald-700 dark:text-emerald-300';
+                        pnlDisplay = `+${pnl}`;
+                    } else if (pnl < 0) {
+                        monthlyLosses++;
+                        lossSum += pnl;
+                        bgClass = 'bg-rose-100 dark:bg-rose-950/80 border border-rose-400 dark:border-rose-500/50 text-rose-700 dark:text-rose-300';
+                        pnlDisplay = `${pnl}`;
+                    } else {
+                        bgClass = 'bg-slate-200 dark:bg-slate-700 border border-slate-400 dark:border-slate-500 text-slate-700 dark:text-slate-300';
+                        pnlDisplay = `0`;
+                    }
+                }
+
+                calendarDays.innerHTML += `
+                    <div onclick="openModal('${dateKey}', '${day}')" class="p-1.5 md:p-2 min-h-[70px] ${bgClass} cursor-pointer transition flex flex-col justify-between text-left group">
+                        <span class="text-xs font-bold ${pnl !== undefined ? '' : 'text-slate-400 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200'}">${day}</span>
+                        <span class="text-[10px] md:text-xs font-mono font-bold truncate">${pnlDisplay}</span>
+                    </div>
+                `;
+            }
+
+            // อัปเดตสถิติรายเดือนบนแดชบอร์ด
+            const totalMonthlyTrades = monthlyWins + monthlyLosses;
+            const winRate = totalMonthlyTrades > 0 ? ((monthlyWins / totalMonthlyTrades) * 100).toFixed(1) : 0;
+            
+            document.getElementById('statWinRate').innerText = `${winRate}%`;
+            document.getElementById('statTrades').innerText = `${monthlyWins} W - ${monthlyLosses} L`;
+            
+            const netElem = document.getElementById('statNetPnL');
+            netElem.innerText = (monthlyNet >= 0 ? '+' : '') + monthlyNet.toLocaleString();
+            
+            if (monthlyNet >= 0) {
+                netElem.className = "text-xl md:text-2xl font-bold text-emerald-600 dark:text-emerald-400";
+            } else {
+                netElem.className = "text-xl md:text-2xl font-bold text-rose-600 dark:text-rose-400";
+            }
+
+            const avgWin = monthlyWins > 0 ? Math.round(winSum / monthlyWins) : 0;
+            const avgLoss = monthlyLosses > 0 ? Math.round(lossSum / monthlyLosses) : 0;
+            document.getElementById('statRatio').innerText = `+${avgWin.toLocaleString()} / ${avgLoss.toLocaleString()}`;
+        }
+
+        function changeMonth(direction) {
+            currentDate.setMonth(currentDate.getMonth() + direction);
+            renderCalendar();
+        }
+
+        function openModal(dateKey, day) {
+            selectedDateKey = dateKey;
+            document.getElementById('modalTitle').innerText = `บันทึกผลการเทรดวันที่ ${day}`;
+            document.getElementById('modalFormattedDate').innerText = dateKey;
+            document.getElementById('modalAmount').value = tradeData[dateKey] !== undefined ? tradeData[dateKey] : '';
+            document.getElementById('modal').classList.remove('hidden');
+            document.getElementById('modalAmount').focus();
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.add('hidden');
+        }
+
+        function saveModalData() {
+            const val = document.getElementById('modalAmount').value;
+            if (val === '') {
+                delete tradeData[selectedDateKey];
+            } else {
+                tradeData[selectedDateKey] = parseFloat(val);
+            }
+            localStorage.setItem('calendarUserData', JSON.stringify(tradeData));
+            closeModal();
+            renderCalendar();
+        }
+
+        // --- ระบบสำรองและนำเข้าข้อมูล ---
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(tradeData));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `PL_Calendar_Backup_${new Date().toISOString().split('T')[0]}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (typeof importedData === 'object') {
+                        tradeData = importedData;
+                        localStorage.setItem('calendarUserData', JSON.stringify(tradeData));
+                        renderCalendar();
+                        alert('นำเข้าข้อมูลสำเร็จแล้วครับ!');
+                    }
+                } catch (err) {
+                    alert('ไฟล์ไม่ถูกต้อง ไม่สามารถนำเข้าได้ครับ');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // เริ่มต้นทำงานเมื่อโหลดหน้าเว็บ
+        initTheme();
+        renderCalendar();
+    </script>
+</body>
+</html>
